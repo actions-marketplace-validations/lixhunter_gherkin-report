@@ -1,0 +1,64 @@
+name: Generate Gherkin Report
+description: Extracts Gherkin-style comments from files and generates an HTML report
+
+inputs:
+  input-files:
+    description: Glob pattern(s) for input files (e.g., ./tests/*.tftest.hcl ./tests/*_test.go)
+    required: true
+  output:
+    description: Path to write the HTML report
+    default: ./build/gherkin-report.html
+  output-json:
+    description: Optional path for normalized report JSON
+    default: ""
+  output-cucumber-json:
+    description: Optional path for cucumber.json output
+    default: ""
+  output-junit-xml:
+    description: Optional path for JUnit XML output
+    default: ""
+  status-parser:
+    description: Status parser to use (terraform or go)
+    default: terraform
+  status-json:
+    description: Optional path to parser-specific JSON/JSONL status output file
+    default: ""
+  debug-scenario-mapping:
+    description: Show mapping debug chips per scenario in HTML
+    default: "false"
+  terraform-json:
+    description: Deprecated alias for status-json (Terraform test JSONL path)
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Generate Gherkin Report
+      env:
+        INPUT_FILES: ${{ inputs.input-files }}
+        OUTPUT_PATH: ${{ inputs.output }}
+        OUTPUT_JSON_PATH: ${{ inputs.output-json }}
+        OUTPUT_CUCUMBER_JSON_PATH: ${{ inputs.output-cucumber-json }}
+        OUTPUT_JUNIT_XML_PATH: ${{ inputs.output-junit-xml }}
+        STATUS_PARSER: ${{ inputs.status-parser }}
+        STATUS_JSON_PATH: ${{ inputs.status-json }}
+        DEBUG_SCENARIO_MAPPING: ${{ inputs.debug-scenario-mapping }}
+        TERRAFORM_JSON_PATH: ${{ inputs.terraform-json }}
+      shell: bash
+      run: |
+        DEBUG_MAPPING_ARG=""
+        if [[ "$DEBUG_SCENARIO_MAPPING" == "true" ]]; then
+          DEBUG_MAPPING_ARG="--debug-scenario-mapping"
+        fi
+
+        bash ${DEBUG:+"-x"} "${GITHUB_ACTION_PATH}/action.sh" \
+          --output "$OUTPUT_PATH" \
+          ${OUTPUT_JSON_PATH:+--output-json "$OUTPUT_JSON_PATH"} \
+          ${OUTPUT_CUCUMBER_JSON_PATH:+--output-cucumber-json "$OUTPUT_CUCUMBER_JSON_PATH"} \
+          ${OUTPUT_JUNIT_XML_PATH:+--output-junit-xml "$OUTPUT_JUNIT_XML_PATH"} \
+          --status-parser "$STATUS_PARSER" \
+          ${DEBUG_MAPPING_ARG:+$DEBUG_MAPPING_ARG} \
+          ${STATUS_JSON_PATH:+--status-json "$STATUS_JSON_PATH"} \
+          ${TERRAFORM_JSON_PATH:+--terraform-json "$TERRAFORM_JSON_PATH"} \
+          $INPUT_FILES
+

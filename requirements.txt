@@ -1,0 +1,4 @@
+# Type checking for development only
+# The runtime uses only Python standard library.
+mypy>=1.10.0
+
