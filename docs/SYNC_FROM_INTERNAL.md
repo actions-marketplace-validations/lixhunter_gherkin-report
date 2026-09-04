@@ -13,7 +13,7 @@ This project is published on GitHub, while a private operational copy may exist 
 ## Manual sync commands (example)
 
 ```bash
-rsync -av --exclude '__pycache__' \
+rsync -av --exclude '.git/' --exclude '__pycache__' \
   /path/to/internal/gherkin-report/ \
   /path/to/this/repo/
 
