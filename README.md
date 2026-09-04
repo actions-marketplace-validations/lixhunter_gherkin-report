@@ -7,6 +7,8 @@ Optionally also emits normalized JSON, Cucumber JSON, and JUnit XML for downstre
 
 This action extracts Gherkin-style comments (Feature, Scenario, Given/When/Then, etc.) from files and generates a comprehensive HTML report with optional integration of actual test execution results.
 
+Canonical upstream repository: https://github.com/lixhunter/gherkin-report
+
 ## Features
 
 - Extracts Gherkin-style comments from `.tftest.hcl`, `*_test.go`, and other files
