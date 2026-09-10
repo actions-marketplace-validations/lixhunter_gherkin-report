@@ -2,11 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.1.0] - 2026-09-04
+## [0.1.0] - Unreleased
 
 ### Added
 
-- Initial public release of `gherkin-report`
 - HTML report generation from Gherkin-style comments
 - Terraform status integration from `terraform test -json`
 - Go status integration from `go test -json`
@@ -15,6 +14,7 @@ All notable changes to this project are documented in this file.
 
 ### Notes
 
+- Planned first release of `gherkin-report`.
 - Designed for compatibility with both private and public CI environments.
 - Allure output is intentionally not included in this release.
 

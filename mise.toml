@@ -1,0 +1,4 @@
+[tasks.gherkin-report]
+description = "Generate Gherkin report via action.sh"
+run = './action.sh "$@"'
+

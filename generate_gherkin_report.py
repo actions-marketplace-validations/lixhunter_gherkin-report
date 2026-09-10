@@ -19,7 +19,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, cast
 
-from event_types import JsonList, JsonObject, OutputChange, ResourceChange, StatusLookup, TerraformEvent
+from terraform_event_types import (
+    JsonList,
+    JsonObject,
+    StatusLookup,
+    TerraformEvent,
+    TerraformOutputChange,
+    TerraformResourceChange,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -122,16 +129,16 @@ def as_list(value: Optional[Any]) -> JsonList:
     return []
 
 
-def as_event(value: JsonObject) -> TerraformEvent:
+def as_terraform_event(value: JsonObject) -> TerraformEvent:
     return cast(TerraformEvent, value)
 
 
-def as_resource_change(value: JsonObject) -> ResourceChange:
-    return cast(ResourceChange, value)
+def as_terraform_resource_change(value: JsonObject) -> TerraformResourceChange:
+    return cast(TerraformResourceChange, value)
 
 
-def as_output_change(value: JsonObject) -> OutputChange:
-    return cast(OutputChange, value)
+def as_terraform_output_change(value: JsonObject) -> TerraformOutputChange:
+    return cast(TerraformOutputChange, value)
 
 
 def as_str(value: Optional[Any], default: str = "") -> str:
@@ -248,8 +255,8 @@ def load_json_objects(json_path: Path) -> list[JsonObject]:
     return items
 
 
-def load_events(json_path: Path) -> list[TerraformEvent]:
-    return [as_event(item) for item in load_json_objects(json_path)]
+def load_terraform_events(json_path: Path) -> list[TerraformEvent]:
+    return [as_terraform_event(item) for item in load_json_objects(json_path)]
 
 
 def load_terraform_test_summary(events: list[TerraformEvent]) -> RunnerSummary:
@@ -446,7 +453,7 @@ def format_attr_line(key: str, value_lines: list[str]) -> list[str]:
     return [f"      + {key} = {value_lines[0]}", *value_lines[1:]]
 
 
-def render_resource_change(rc: ResourceChange) -> list[str]:
+def render_resource_change(rc: TerraformResourceChange) -> list[str]:
     out: list[str] = []
     change = as_object(rc.get("change"))
     after = as_object(change.get("after"))
@@ -495,7 +502,7 @@ def render_resource_change(rc: ResourceChange) -> list[str]:
     return out
 
 
-def count_actions(resource_changes: list[ResourceChange]) -> tuple[int, int, int]:
+def count_actions(resource_changes: list[TerraformResourceChange]) -> tuple[int, int, int]:
     add = update_count = destroy = 0
     for rc in resource_changes:
         change_obj = as_object(rc.get("change"))
@@ -509,7 +516,7 @@ def count_actions(resource_changes: list[ResourceChange]) -> tuple[int, int, int
     return add, update_count, destroy
 
 
-def render_output_change(name: str, change: OutputChange) -> list[str]:
+def render_output_change(name: str, change: TerraformOutputChange) -> list[str]:
     after = change.get("after")
     after_unknown = change.get("after_unknown")
     after_sensitive = change.get("after_sensitive")
@@ -590,7 +597,11 @@ def reconstruct_terraform_output(events: list[TerraformEvent]) -> str:
 
         if et == "test_plan":
             plan = as_object(ev.get("test_plan"))
-            resource_changes = [as_resource_change(as_object(v)) for v in as_list(plan.get("resource_changes")) if isinstance(v, dict)]
+            resource_changes = [
+                as_terraform_resource_change(as_object(v))
+                for v in as_list(plan.get("resource_changes"))
+                if isinstance(v, dict)
+            ]
             out.append("")
             out.append("Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following")
             out.append("symbols:")
@@ -622,7 +633,7 @@ def reconstruct_terraform_output(events: list[TerraformEvent]) -> str:
             if output_changes:
                 out.append("Changes to Outputs:")
                 for name in sorted(output_changes):
-                    payload = as_output_change(as_object(output_changes[name]))
+                    payload = as_terraform_output_change(as_object(output_changes[name]))
                     out.extend(render_output_change(name, payload))
                 out.append("")
             continue
@@ -1438,7 +1449,7 @@ def main(argv: list[str]) -> int:
             status_lookup = build_go_status_lookup(go_events)
             output_text = reconstruct_go_output(go_events)
         else:
-            terraform_events = load_events(resolved_status_json)
+            terraform_events = load_terraform_events(resolved_status_json)
             summary = load_terraform_test_summary(terraform_events)
             status_lookup = build_status_lookup(terraform_events)
             output_text = reconstruct_terraform_output(terraform_events)

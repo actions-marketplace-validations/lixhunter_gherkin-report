@@ -3,6 +3,8 @@
 Generates an HTML report from Gherkin-style comments in source/test files and optionally integrates parser-specific test status output.
 Optionally also emits normalized JSON, Cucumber JSON, and JUnit XML for downstream tooling.
 
+The repository is intentionally set up for dual use: as a GitHub Action via `action.yaml`, and as a local CLI/report tool via `action.sh`.
+
 ## Overview
 
 This action extracts Gherkin-style comments (Feature, Scenario, Given/When/Then, etc.) from files and generates a comprehensive HTML report with optional integration of actual test execution results.
@@ -37,6 +39,46 @@ Canonical upstream repository: https://github.com/lixhunter/gherkin-report
     output-junit-xml: ./build/junit.xml           # optional
     status-json: ./build/terraform-test.jsonl  # optional
 ```
+
+### Via `mise`
+
+This repository also exposes a local `mise` task that delegates to `action.sh`, which is the same wrapper used by the composite GitHub Action. That keeps local usage and CI usage aligned.
+
+List the local task:
+
+```bash
+mise tasks ls
+```
+
+Generate a report from Terraform-style test files:
+
+```bash
+mise run gherkin-report -- ./tests/*.tftest.hcl
+```
+
+Generate a report with explicit output files and parser-specific status input:
+
+```bash
+mise run gherkin-report -- \
+  --output ./build/gherkin-report.html \
+  --output-json ./build/gherkin-report.json \
+  --output-cucumber-json ./build/cucumber.json \
+  --output-junit-xml ./build/junit.xml \
+  --status-parser terraform \
+  --status-json ./build/terraform-test.jsonl \
+  ./tests/*.tftest.hcl
+```
+
+Run against Go tests instead:
+
+```bash
+mise run gherkin-report -- \
+  --status-parser go \
+  --status-json ./build/go-test.jsonl \
+  ./tests/*_test.go
+```
+
+Requirements for local `mise` usage are the same as direct script usage: `bash` plus `python3` available on `PATH`.
 
 ### Direct Python Script Usage
 
@@ -200,7 +242,7 @@ python3 -m unittest -v test_status_lookup.py
 
 - `extract_comments.py` - Extracts Gherkin comments and file metadata
 - `generate_gherkin_report.py` - Generates HTML report from extracted comments
-- `event_types.py` - TypedDict definitions for Terraform JSONL events
+- `terraform_event_types.py` - TypedDict definitions for Terraform JSONL events
 
 ## License
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Typed models for terraform test JSONL events."""
+"""Typed models for Terraform test JSONL events."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ JsonList = list[Any]
 StatusLookup = dict[str, list[str]]
 
 
-class TestSummaryPayload(TypedDict, total=False):
+class TerraformTestSummaryPayload(TypedDict, total=False):
     status: str
     passed: int
     failed: int
@@ -18,14 +18,14 @@ class TestSummaryPayload(TypedDict, total=False):
     skipped: int
 
 
-class TestRunPayload(TypedDict, total=False):
+class TerraformTestRunPayload(TypedDict, total=False):
     path: str
     run: str
     progress: str
     status: str
 
 
-class TestFilePayload(TypedDict, total=False):
+class TerraformTestFilePayload(TypedDict, total=False):
     path: str
     progress: str
     status: str
@@ -53,37 +53,37 @@ class DiagnosticPayload(TypedDict, total=False):
     snippet: DiagnosticSnippet
 
 
-class ResourceChangeMeta(TypedDict, total=False):
+class TerraformResourceChangeMeta(TypedDict, total=False):
     actions: list[str]
     after: JsonObject
     after_unknown: JsonObject
     after_sensitive: JsonObject
 
 
-class ResourceChange(TypedDict, total=False):
+class TerraformResourceChange(TypedDict, total=False):
     address: str
     mode: str
     type: str
     name: str
-    change: ResourceChangeMeta
+    change: TerraformResourceChangeMeta
 
 
-class OutputChange(TypedDict, total=False):
+class TerraformOutputChange(TypedDict, total=False):
     after: Any
     after_unknown: Any
     after_sensitive: Any
 
 
-class TestPlanPayload(TypedDict, total=False):
-    resource_changes: list[ResourceChange]
-    output_changes: dict[str, OutputChange]
+class TerraformTestPlanPayload(TypedDict, total=False):
+    resource_changes: list[TerraformResourceChange]
+    output_changes: dict[str, TerraformOutputChange]
 
 
 class TerraformEvent(TypedDict, total=False):
     type: str
     diagnostic: DiagnosticPayload
-    test_file: TestFilePayload
-    test_run: TestRunPayload
-    test_plan: TestPlanPayload
-    test_summary: TestSummaryPayload
+    test_file: TerraformTestFilePayload
+    test_run: TerraformTestRunPayload
+    test_plan: TerraformTestPlanPayload
+    test_summary: TerraformTestSummaryPayload
 
