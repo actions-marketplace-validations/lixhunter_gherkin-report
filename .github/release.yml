@@ -3,29 +3,18 @@ changelog:
     - title: "Breaking Changes 💥"
       labels:
         - "breaking-change"
-        - "major"
-    - title: "Features ✨"
+    - title: "New Features ✨"
       labels:
-        - "enhancement"
         - "feature"
-        - "feat"
     - title: "Bug Fixes 🐛"
       labels:
-        - "bug"
         - "fix"
-    - title: "Documentation 📚"
+    - title: "Other Changes"
       labels:
-        - "documentation"
-        - "docs"
-    - title: "Maintenance 🧹"
-      labels:
-        - "chore"
-        - "refactor"
-        - "ci"
-        - "dependencies"
+        - "*"
   exclude:
     labels:
-      - "skip-changelog"
+      - "ignore-release"
     authors:
       - "github-actions[bot]"
 

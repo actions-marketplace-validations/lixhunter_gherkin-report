@@ -1,0 +1,49 @@
+name: PR Release Label
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - edited
+      - ready_for_review
+
+permissions:
+  pull-requests: read
+
+jobs:
+  validate-release-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate exactly one release label
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          required = {"breaking-change", "feature", "fix", "ignore-release"}
+          event_path = os.environ["GITHUB_EVENT_PATH"]
+
+          with open(event_path, "r", encoding="utf-8") as handle:
+              payload = json.load(handle)
+
+          labels = [item["name"] for item in payload.get("pull_request", {}).get("labels", [])]
+          found = [label for label in labels if label in required]
+
+          if len(found) != 1:
+              print("A pull request must have exactly one release label.")
+              print("Required labels:", ", ".join(sorted(required)))
+              print("Current labels:", ", ".join(labels) if labels else "<none>")
+              print("Matching release labels:", ", ".join(found) if found else "<none>")
+              sys.exit(1)
+
+          print(f"Release label check passed: {found[0]}")
+          PY
+
+

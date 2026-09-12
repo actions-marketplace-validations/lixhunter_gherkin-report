@@ -2,16 +2,15 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: write
-  attestations: write
-  id-token: write
+  pull-requests: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -23,46 +22,106 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify tag integrity
+      - name: Calculate release version from PR labels
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
-          git fetch --no-tags origin main
-          git fetch --tags origin
 
-          if [ "$(git cat-file -t "refs/tags/${TAG}")" != "tag" ]; then
-            echo "Tag ${TAG} must be annotated."
-            exit 1
+          git fetch --force --tags origin
+
+          semver_at_head="$(git tag --points-at HEAD --list 'v*.*.*' | head -n1 || true)"
+          if [ -n "${semver_at_head}" ]; then
+            echo "Head already tagged as ${semver_at_head}; skipping release."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-          TAG_COMMIT="$(git rev-list -n 1 "${TAG}")"
-          MAIN_COMMIT="$(git rev-parse origin/main)"
-          if [ "${TAG_COMMIT}" != "${MAIN_COMMIT}" ]; then
-            echo "Tag ${TAG} must point to HEAD of main."
-            echo "tag=${TAG_COMMIT} main=${MAIN_COMMIT}"
-            exit 1
+          prev_tag="$(git describe --tags --abbrev=0 --match 'v*.*.*' 2>/dev/null || printf 'v0.0.0')"
+          echo "Previous tag: ${prev_tag}"
+
+          prs="$(git log --pretty=format:%s "${prev_tag}"..HEAD | grep -oE '#[0-9]+' | tr -d '#' | sort -u || true)"
+          if [ -z "${prs}" ]; then
+            echo "No PR references found in ${prev_tag}..HEAD; skipping release."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-      - name: Build source archive
+          has_breaking=false
+          has_feature=false
+          has_fix=false
+
+          while IFS= read -r pr; do
+            [ -n "${pr}" ] || continue
+            label="$(gh pr view "${pr}" --json labels --jq '.labels | map(.name) | map(select(. == "breaking-change" or . == "feature" or . == "fix" or . == "ignore-release")) | .[0] // ""')"
+            if [ -z "${label}" ]; then
+              echo "PR #${pr} has no supported release label; skipping it in release calculation."
+              continue
+            fi
+
+            case "${label}" in
+              breaking-change)
+                has_breaking=true
+                ;;
+              feature)
+                has_feature=true
+                ;;
+              fix)
+                has_fix=true
+                ;;
+              ignore-release)
+                ;;
+            esac
+          done <<< "${prs}"
+
+          if [ "${has_breaking}" = false ] && [ "${has_feature}" = false ] && [ "${has_fix}" = false ]; then
+            echo "Only ignore-release (or unsupported) labels found; skipping release."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          major="$(echo "${prev_tag#v}" | cut -d. -f1)"
+          minor="$(echo "${prev_tag#v}" | cut -d. -f2)"
+          patch="$(echo "${prev_tag#v}" | cut -d. -f3)"
+
+          if [ "${has_breaking}" = true ]; then
+            new_tag="v$((major + 1)).0.0"
+          elif [ "${has_feature}" = true ]; then
+            new_tag="v${major}.$((minor + 1)).0"
+          else
+            new_tag="v${major}.${minor}.$((patch + 1))"
+          fi
+
+          echo "tag=${new_tag}" >> "$GITHUB_OUTPUT"
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
+          echo "Calculated tag: ${new_tag}"
+
+      - name: Create and push tag
+        if: steps.version.outputs.skipped != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist
-          git archive --format=tar.gz --output "dist/gherkin-report-${GITHUB_REF_NAME}.tar.gz" "${GITHUB_SHA}"
-
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
-        with:
-          subject-path: "dist/gherkin-report-${{ github.ref_name }}.tar.gz"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git tag -a "${TAG}" -m "${TAG}"
+          git push origin "${TAG}"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-          files: |
-            dist/gherkin-report-${{ github.ref_name }}.tar.gz
+        if: steps.version.outputs.skipped != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${TAG}" \
+            --generate-notes
 
 
 
